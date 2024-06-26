@@ -22,17 +22,20 @@ public class GameController : MonoBehaviour
     public Button xPlayerButton;
     public Button oPlayerButton;
     public GameObject catImage;
+    public GameObject StartPannel;
+    public Button backButton;
 
+    private bool aiMode = false;
 
-
-    // Start is called before the first frame update
     void Start()
     {
-        GameSetup();
+        beforeStart();
+        //GameSetup();
     }
 
     void GameSetup()
     {
+        backButton.gameObject.SetActive(true);
         whoTurn = 0;
         turnCount = 0;
         turnIcons[0].SetActive(true);
@@ -58,40 +61,40 @@ public class GameController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
+        //in aimode and to ai turn
+        if (aiMode && whoTurn == 1)
+        {
+            AITurn();
+        }
     }
 
     public void TicTacToeButton(int WhichNumber)
     {
-        xPlayerButton.interactable = false;
-        oPlayerButton.interactable = false;
-        if (WhichNumber < 0 || WhichNumber >= tictactoeSpaces.Length)
+        if (tictactoeSpaces[WhichNumber].interactable)
         {
-            Debug.LogError("Invalid button index: " + WhichNumber);
-            return;
-        }
+            PlaceMark(WhichNumber);
 
-        if (tictactoeSpaces[WhichNumber] != null)
-        {
-            tictactoeSpaces[WhichNumber].image.sprite = playIcons[whoTurn];
-            tictactoeSpaces[WhichNumber].interactable = false;
-        }
+            if (turnCount > 4)
+            {
+                bool isWinner = WinnerCheck();
+                if (turnCount == 9 && isWinner == false)
+                {
+                    Cat();
+                }
+            }
 
+            whoTurn = 1 - whoTurn;
+            turnIcons[0].SetActive(whoTurn == 0);
+            turnIcons[1].SetActive(whoTurn == 1);
+        }
+    }
+
+    void PlaceMark(int WhichNumber)
+    {
+        tictactoeSpaces[WhichNumber].image.sprite = playIcons[whoTurn];
+        tictactoeSpaces[WhichNumber].interactable = false;
         markedSpaces[WhichNumber] = whoTurn + 1;
         turnCount++;
-        if (turnCount > 4)
-        {
-            bool isWinner = WinnerCheck();
-            if(turnCount == 9 && isWinner == false)
-            {
-                Cat();
-            }
-            
-        }
-
-        whoTurn = 1 - whoTurn;
-        turnIcons[0].SetActive(whoTurn == 0);
-        turnIcons[1].SetActive(whoTurn == 1);
     }
 
     bool WinnerCheck()
@@ -152,7 +155,7 @@ public class GameController : MonoBehaviour
     public void Rematch()
     {
         GameSetup();
-        for(int i = 0; i < winningLine.Length; i++)
+        for (int i = 0; i < winningLine.Length; i++)
         {
             winningLine[i].SetActive(false);
         }
@@ -173,7 +176,7 @@ public class GameController : MonoBehaviour
 
     public void SwitchPlayer(int whichPlayer)
     {
-        if(whichPlayer == 0)
+        if (whichPlayer == 0)
         {
             whoTurn = 0;
             turnIcons[0].SetActive(true);
@@ -193,4 +196,164 @@ public class GameController : MonoBehaviour
         catImage.SetActive(true);
         winnerText.text = "CAT";
     }
+
+    public void beforeStart()
+    {
+        StartPannel.SetActive(true);
+        backButton.gameObject.SetActive(false);
+    }
+
+    public void playerVsPlayer()
+    {
+        Debug.Log("playerVsPlayer button clicked");
+        StartPannel.SetActive(false);
+        aiMode = false;
+        GameSetup();
+    }
+
+    public void back()
+    {
+        Restart();
+        StartPannel.SetActive(true);
+    }
+
+    public void playWithAi()
+    {
+        StartPannel.SetActive(false);
+        aiMode = true;
+        GameSetup();
+    }
+
+    void AITurn()
+    {
+        int bestScore = int.MinValue;
+        int bestMove = -1;
+
+        for (int i = 0; i < markedSpaces.Length; i++)
+        {
+            if (markedSpaces[i] == -100)
+            {
+                markedSpaces[i] = 2;
+                int score = MiniMax(markedSpaces, 0, false);
+                markedSpaces[i] = -100;
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMove = i;
+                }
+            }
+        }
+
+        if (bestMove != -1)
+        {
+            PlaceMark(bestMove);
+            if (turnCount > 4)
+            {
+                bool isWinner = WinnerCheck();
+                if (turnCount == 9 && isWinner == false)
+                {
+                    Cat();
+                }
+            }
+
+            whoTurn = 1 - whoTurn;
+            turnIcons[0].SetActive(whoTurn == 0);
+            turnIcons[1].SetActive(whoTurn == 1);
+        }
+    }
+
+    int MiniMax(int[] board, int depth, bool isMaximizing)
+    {
+        int result = EvaluateBoard(board);
+        if (result != 0)
+        {
+            return result;
+        }
+
+        if (IsBoardFull(board))
+        {
+            return 0;
+        }
+
+        if (isMaximizing)
+        {
+            int bestScore = int.MinValue;
+            for (int i = 0; i < board.Length; i++)
+            {
+                if (board[i] == -100)
+                {
+                    board[i] = 2;
+                    int score = MiniMax(board, depth + 1, false);
+                    board[i] = -100;
+                    bestScore = Mathf.Max(score, bestScore);
+                }
+            }
+            return bestScore;
+        }
+        else
+        {
+            int bestScore = int.MaxValue;
+            for (int i = 0; i < board.Length; i++)
+            {
+                if (board[i] == -100)
+                {
+                    board[i] = 1;
+                    int score = MiniMax(board, depth + 1, true);
+                    board[i] = -100;
+                    bestScore = Mathf.Min(score, bestScore);
+                }
+            }
+            return bestScore;
+        }
+    }
+
+    int EvaluateBoard(int[] board)
+    {
+        int[,] winningCombinations = new int[,]
+        {
+            {0, 1, 2},
+            {3, 4, 5},
+            {6, 7, 8},
+            {0, 3, 6},
+            {1, 4, 7},
+            {2, 5, 8},
+            {0, 4, 8},
+            {2, 4, 6}
+        };
+
+        for (int i = 0; i < winningCombinations.GetLength(0); i++)
+        {
+            int a = winningCombinations[i, 0];
+            int b = winningCombinations[i, 1];
+            int c = winningCombinations[i, 2];
+
+            if (board[a] == board[b] && board[b] == board[c])
+            {
+                if (board[a] == 1)
+                {
+                    return -10;
+                }
+                else if (board[a] == 2)
+                {
+                    return 10;
+                }
+            }
+        }
+        return 0;
+    }
+
+    bool IsBoardFull(int[] board)
+    {
+        for (int i = 0; i < board.Length; i++)
+        {
+            if (board[i] == -100)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+   
 }
