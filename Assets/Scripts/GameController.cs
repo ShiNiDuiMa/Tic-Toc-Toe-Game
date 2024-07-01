@@ -24,6 +24,7 @@ public class GameController : MonoBehaviour
     public GameObject catImage;
     public GameObject StartPannel;
     public Button backButton;
+    public AudioSource buttonClickAudio;
 
     private bool aiMode = false;
 
@@ -355,5 +356,8 @@ public class GameController : MonoBehaviour
         return true;
     }
 
-   
+   public void PlayButtonClick()
+    {
+        buttonClickAudio.Play();
+    }
 }
